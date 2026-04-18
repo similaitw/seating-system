@@ -631,6 +631,102 @@
     state.arrangement.locked_seats = (state.arrangement.locked_seats ?? []).filter(([r, c]) => !emptySet.has(seatKey(r, c)));
   }
 
+  function insertEmptyColumn(afterCol) {
+    const rows = state.classroom.rows;
+    const cols = state.classroom.cols;
+    if (cols >= 30) return { ok: false, reason: '欄數已達上限' };
+    const insertAt = clampInt(afterCol + 1, 0, cols);
+
+    const oldSeats = state.arrangement.seats ?? [];
+    const nextSeats = createSeatsMatrix(rows, cols + 1);
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        const targetCol = c < insertAt ? c : c + 1;
+        nextSeats[r][targetCol] = oldSeats[r]?.[c] ?? null;
+      }
+    }
+    state.arrangement.seats = nextSeats;
+    state.classroom.cols = cols + 1;
+
+    const shiftCol = (c) => (c < insertAt ? c : c + 1);
+    state.classroom.empty_seats = (state.classroom.empty_seats ?? []).map(([r, c]) => [r, shiftCol(c)]);
+    state.arrangement.locked_seats = (state.arrangement.locked_seats ?? []).map(([r, c]) => [r, shiftCol(c)]);
+    for (const s of state.students) {
+      if (s.fixed_position) s.fixed_position = [s.fixed_position[0], shiftCol(s.fixed_position[1])];
+    }
+
+    for (let r = 0; r < rows; r++) state.classroom.empty_seats.push([r, insertAt]);
+    return { ok: true };
+  }
+
+  function insertEmptyRow(afterRow) {
+    const rows = state.classroom.rows;
+    const cols = state.classroom.cols;
+    if (rows >= 30) return { ok: false, reason: '列數已達上限' };
+    const insertAt = clampInt(afterRow + 1, 0, rows);
+
+    const oldSeats = state.arrangement.seats ?? [];
+    const nextSeats = createSeatsMatrix(rows + 1, cols);
+    for (let r = 0; r < rows; r++) {
+      const targetRow = r < insertAt ? r : r + 1;
+      for (let c = 0; c < cols; c++) {
+        nextSeats[targetRow][c] = oldSeats[r]?.[c] ?? null;
+      }
+    }
+    state.arrangement.seats = nextSeats;
+    state.classroom.rows = rows + 1;
+
+    const shiftRow = (r) => (r < insertAt ? r : r + 1);
+    state.classroom.empty_seats = (state.classroom.empty_seats ?? []).map(([r, c]) => [shiftRow(r), c]);
+    state.arrangement.locked_seats = (state.arrangement.locked_seats ?? []).map(([r, c]) => [shiftRow(r), c]);
+    for (const s of state.students) {
+      if (s.fixed_position) s.fixed_position = [shiftRow(s.fixed_position[0]), s.fixed_position[1]];
+    }
+
+    for (let c = 0; c < cols; c++) state.classroom.empty_seats.push([insertAt, c]);
+    return { ok: true };
+  }
+
+  function generateStudentId() {
+    const existing = new Set(state.students.map((s) => s.id));
+    for (let i = 1; i <= 999; i++) {
+      const cand = 'S' + pad2(i);
+      if (!existing.has(cand)) return cand;
+    }
+    return 'S_' + Math.random().toString(16).slice(2, 8);
+  }
+
+  function createBlankStudent(seatNumber) {
+    return {
+      id: generateStudentId(),
+      seat_number: seatNumber ?? null,
+      name: '',
+      gender: '男',
+      height: null,
+      vision_left: 1.0,
+      vision_right: 1.0,
+      need_front_seat: false,
+      need_aisle_seat: false,
+      need_near_teacher: false,
+      fixed_position: null,
+      notes: '',
+    };
+  }
+
+  function deleteStudent(studentId) {
+    const idx = state.students.findIndex((s) => s.id === studentId);
+    if (idx < 0) return false;
+    state.students.splice(idx, 1);
+    for (let r = 0; r < state.classroom.rows; r++) {
+      for (let c = 0; c < state.classroom.cols; c++) {
+        if (state.arrangement.seats[r]?.[c] === studentId) state.arrangement.seats[r][c] = null;
+      }
+    }
+    state.rules.avoid_pairs = (state.rules.avoid_pairs ?? []).filter(([a, b]) => a !== studentId && b !== studentId);
+    if (state.ui.selected_student_id === studentId) state.ui.selected_student_id = null;
+    return true;
+  }
+
   function clearArrangementUnlocked() {
     const lockedSet = buildLockedSeatSet();
     const emptySet = buildEmptySeatSet();
@@ -1124,6 +1220,13 @@
         scheduleSave();
       });
 
+      card.addEventListener('dblclick', (ev) => {
+        ev.preventDefault();
+        openStudentModal(s.id);
+      });
+
+      card.title = '雙擊開啟編輯視窗';
+
       card.addEventListener('dragstart', (ev) => {
         const payload = JSON.stringify({ studentId: s.id });
         ev.dataTransfer.setData('text/plain', payload);
@@ -1259,8 +1362,16 @@
 
           seat.addEventListener('dblclick', (ev) => {
             ev.preventDefault();
-            commit(() => toggleEmptySeat(r, c), '已更新空位');
+            if (occupantId) {
+              openStudentModal(occupantId);
+            } else {
+              commit(() => toggleEmptySeat(r, c), '已更新空位');
+            }
           });
+
+          // 邊緣長按 → 插入整欄 / 整列走道
+          attachEdgeHandle(seat, 'right', r, c);
+          attachEdgeHandle(seat, 'bottom', r, c);
         }
 
         el.grid.appendChild(seat);
@@ -1421,9 +1532,179 @@
 
     el.violations = document.getElementById('violations');
     el.grid = document.getElementById('grid');
+    el.grid_wrap = document.querySelector('.grid-wrap');
     el.desk = document.getElementById('desk');
     el.status = document.getElementById('status');
     el.clear_local = document.getElementById('clear-local');
+
+    el.add_student = document.getElementById('add-student');
+    el.add_bulk = document.getElementById('add-bulk');
+
+    el.student_modal = document.getElementById('student-modal');
+    el.sm_seat_number = document.getElementById('sm-seat-number');
+    el.sm_name = document.getElementById('sm-name');
+    el.sm_gender = document.getElementById('sm-gender');
+    el.sm_height = document.getElementById('sm-height');
+    el.sm_vision_left = document.getElementById('sm-vision-left');
+    el.sm_vision_right = document.getElementById('sm-vision-right');
+    el.sm_need_front = document.getElementById('sm-need-front');
+    el.sm_need_near = document.getElementById('sm-need-near');
+    el.sm_need_aisle = document.getElementById('sm-need-aisle');
+    el.sm_notes = document.getElementById('sm-notes');
+    el.sm_save = document.getElementById('student-modal-save');
+    el.sm_cancel = document.getElementById('student-modal-cancel');
+    el.sm_close = document.getElementById('student-modal-close');
+    el.sm_delete = document.getElementById('student-modal-delete');
+
+    el.bulk_modal = document.getElementById('bulk-modal');
+    el.bm_count = document.getElementById('bm-count');
+    el.bm_prefix = document.getElementById('bm-prefix');
+    el.bm_start = document.getElementById('bm-start');
+    el.bm_confirm = document.getElementById('bulk-modal-confirm');
+    el.bm_cancel = document.getElementById('bulk-modal-cancel');
+    el.bm_close = document.getElementById('bulk-modal-close');
+  }
+
+  function attachEdgeHandle(seat, side, row, col) {
+    const handle = document.createElement('div');
+    handle.className = `seat-edge ${side}`;
+    handle.title = side === 'right' ? '按住右邊緣往右拉 → 插入整欄走道' : '按住下邊緣往下拉 → 插入整列走道';
+    handle.draggable = false;
+    seat.appendChild(handle);
+
+    handle.addEventListener('mousedown', (ev) => {
+      ev.preventDefault();
+      ev.stopPropagation();
+      handle.classList.add('active');
+
+      const startX = ev.clientX;
+      const startY = ev.clientY;
+      const threshold = 20;
+      let guide = null;
+      let committed = false;
+
+      const onMove = (mv) => {
+        const dx = mv.clientX - startX;
+        const dy = mv.clientY - startY;
+        const dist = side === 'right' ? dx : dy;
+        if (!guide && Math.abs(dist) >= threshold) {
+          guide = document.createElement('div');
+          guide.className = `insert-guide ${side === 'right' ? 'vertical' : 'horizontal'}`;
+          const wrap = el.grid_wrap.getBoundingClientRect();
+          const seatRect = seat.getBoundingClientRect();
+          if (side === 'right') {
+            guide.style.left = (seatRect.right - wrap.left - 2) + 'px';
+            guide.style.top = (seatRect.top - wrap.top) + 'px';
+            guide.style.height = (el.grid.getBoundingClientRect().height) + 'px';
+          } else {
+            guide.style.top = (seatRect.bottom - wrap.top - 2) + 'px';
+            guide.style.left = (seatRect.left - wrap.left) + 'px';
+            guide.style.width = (el.grid.getBoundingClientRect().width) + 'px';
+          }
+          el.grid_wrap.appendChild(guide);
+        }
+      };
+
+      const onUp = (up) => {
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup', onUp);
+        handle.classList.remove('active');
+        if (guide) guide.remove();
+        const dx = up.clientX - startX;
+        const dy = up.clientY - startY;
+        const dist = side === 'right' ? dx : dy;
+        if (!committed && Math.abs(dist) >= threshold) {
+          committed = true;
+          if (side === 'right') {
+            commit(() => {
+              const res = insertEmptyColumn(col);
+              if (!res.ok) state.status_message = res.reason;
+            }, '已插入整欄走道');
+          } else {
+            commit(() => {
+              const res = insertEmptyRow(row);
+              if (!res.ok) state.status_message = res.reason;
+            }, '已插入整列走道');
+          }
+        }
+      };
+
+      document.addEventListener('mousemove', onMove);
+      document.addEventListener('mouseup', onUp);
+    });
+  }
+
+  let editingStudentId = null;
+
+  function openStudentModal(studentId) {
+    const s = studentId ? state.students.find((x) => x.id === studentId) : createBlankStudent();
+    if (!s) return;
+    editingStudentId = studentId || null;
+    el.sm_seat_number.value = s.seat_number ?? '';
+    el.sm_name.value = s.name ?? '';
+    el.sm_gender.value = s.gender === '女' ? '女' : '男';
+    el.sm_height.value = s.height ?? '';
+    el.sm_vision_left.value = s.vision_left ?? 1.0;
+    el.sm_vision_right.value = s.vision_right ?? 1.0;
+    el.sm_need_front.checked = !!s.need_front_seat;
+    el.sm_need_near.checked = !!s.need_near_teacher;
+    el.sm_need_aisle.checked = !!s.need_aisle_seat;
+    el.sm_notes.value = s.notes ?? '';
+    el.sm_delete.style.display = studentId ? '' : 'none';
+    el.student_modal.hidden = false;
+    setTimeout(() => el.sm_name.focus(), 30);
+  }
+
+  function closeStudentModal() {
+    editingStudentId = null;
+    el.student_modal.hidden = true;
+  }
+
+  function saveStudentModal() {
+    const seatNumRaw = el.sm_seat_number.value;
+    const patch = {
+      seat_number: seatNumRaw === '' ? null : clampInt(seatNumRaw, 1, 200),
+      name: String(el.sm_name.value ?? '').trim(),
+      gender: el.sm_gender.value === '女' ? '女' : '男',
+      height: el.sm_height.value === '' ? null : clampInt(el.sm_height.value, 80, 230),
+      vision_left: parseFloat(el.sm_vision_left.value) || 1.0,
+      vision_right: parseFloat(el.sm_vision_right.value) || 1.0,
+      need_front_seat: el.sm_need_front.checked,
+      need_near_teacher: el.sm_need_near.checked,
+      need_aisle_seat: el.sm_need_aisle.checked,
+      notes: String(el.sm_notes.value ?? '').trim(),
+    };
+
+    const editing = editingStudentId;
+    commit(() => {
+      if (editing) {
+        const s = state.students.find((x) => x.id === editing);
+        if (s) Object.assign(s, patch);
+      } else {
+        const fresh = createBlankStudent(patch.seat_number);
+        Object.assign(fresh, patch);
+        state.students.push(fresh);
+      }
+    }, editing ? '已更新學生' : '已新增學生');
+    closeStudentModal();
+  }
+
+  function openBulkModal() { el.bulk_modal.hidden = false; }
+  function closeBulkModal() { el.bulk_modal.hidden = true; }
+
+  function confirmBulkCreate() {
+    const count = clampInt(el.bm_count.value, 1, 80);
+    const prefix = String(el.bm_prefix.value ?? '學生').trim() || '學生';
+    const start = clampInt(el.bm_start.value, 1, 200);
+    commit(() => {
+      for (let i = 0; i < count; i++) {
+        const seat = start + i;
+        const s = createBlankStudent(seat);
+        s.name = `${prefix}${pad2(seat)}`;
+        state.students.push(s);
+      }
+    }, `已建立 ${count} 位學生`);
+    closeBulkModal();
   }
 
   function bindEvents() {
@@ -1757,6 +2038,36 @@
       localStorage.removeItem(STORAGE_KEY);
       state.status_message = '已清除本機暫存';
       render();
+    });
+
+    if (el.add_student) el.add_student.addEventListener('click', () => openStudentModal(null));
+    if (el.add_bulk) el.add_bulk.addEventListener('click', () => openBulkModal());
+
+    if (el.sm_save) el.sm_save.addEventListener('click', saveStudentModal);
+    if (el.sm_cancel) el.sm_cancel.addEventListener('click', closeStudentModal);
+    if (el.sm_close) el.sm_close.addEventListener('click', closeStudentModal);
+    if (el.sm_delete) el.sm_delete.addEventListener('click', () => {
+      if (!editingStudentId) return;
+      const editing = editingStudentId;
+      commit(() => deleteStudent(editing), '已刪除學生');
+      closeStudentModal();
+    });
+    if (el.student_modal) el.student_modal.addEventListener('click', (ev) => {
+      if (ev.target === el.student_modal) closeStudentModal();
+    });
+
+    if (el.bm_confirm) el.bm_confirm.addEventListener('click', confirmBulkCreate);
+    if (el.bm_cancel) el.bm_cancel.addEventListener('click', closeBulkModal);
+    if (el.bm_close) el.bm_close.addEventListener('click', closeBulkModal);
+    if (el.bulk_modal) el.bulk_modal.addEventListener('click', (ev) => {
+      if (ev.target === el.bulk_modal) closeBulkModal();
+    });
+
+    document.addEventListener('keydown', (ev) => {
+      if (ev.key === 'Escape') {
+        if (el.student_modal && !el.student_modal.hidden) closeStudentModal();
+        if (el.bulk_modal && !el.bulk_modal.hidden) closeBulkModal();
+      }
     });
   }
 

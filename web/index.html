@@ -60,6 +60,10 @@
           <button class="button secondary" id="load-sample">載入範例</button>
           <button class="button secondary" id="clear-all">清空</button>
         </div>
+        <div class="button-row">
+          <button class="button tertiary" id="add-student">＋ 新增學生</button>
+          <button class="button tertiary" id="add-bulk">批次建立</button>
+        </div>
 
         <div class="control-group">
           <label for="import-students">匯入學生（JSON / CSV）</label>
@@ -188,6 +192,93 @@
       </div>
       <div class="status" id="status"></div>
     </main>
+  </div>
+
+  <div class="modal-backdrop" id="student-modal" hidden>
+    <div class="modal-panel" role="dialog" aria-modal="true" aria-labelledby="student-modal-title">
+      <header class="modal-header">
+        <h2 id="student-modal-title">編輯學生</h2>
+        <button type="button" class="modal-close" id="student-modal-close" aria-label="close">×</button>
+      </header>
+      <div class="modal-body">
+        <div class="form-row">
+          <label for="sm-seat-number">座號</label>
+          <input id="sm-seat-number" type="number" min="1" max="200" />
+        </div>
+        <div class="form-row">
+          <label for="sm-name">姓名</label>
+          <input id="sm-name" type="text" />
+        </div>
+        <div class="form-row">
+          <label for="sm-gender">性別</label>
+          <select id="sm-gender">
+            <option value="男">男</option>
+            <option value="女">女</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <label for="sm-height">身高</label>
+          <input id="sm-height" type="number" min="80" max="230" placeholder="cm" />
+        </div>
+        <div class="form-row">
+          <label for="sm-vision-left">左視力</label>
+          <input id="sm-vision-left" type="number" step="0.1" min="0" max="2" />
+        </div>
+        <div class="form-row">
+          <label for="sm-vision-right">右視力</label>
+          <input id="sm-vision-right" type="number" step="0.1" min="0" max="2" />
+        </div>
+        <div class="toggle-row">
+          <input id="sm-need-front" type="checkbox" />
+          <label for="sm-need-front">需要前排</label>
+        </div>
+        <div class="toggle-row">
+          <input id="sm-need-near" type="checkbox" />
+          <label for="sm-need-near">靠近講桌</label>
+        </div>
+        <div class="toggle-row">
+          <input id="sm-need-aisle" type="checkbox" />
+          <label for="sm-need-aisle">靠走道</label>
+        </div>
+        <div class="control-group">
+          <label for="sm-notes">備註</label>
+          <input id="sm-notes" type="text" />
+        </div>
+      </div>
+      <footer class="modal-footer">
+        <button type="button" class="button tertiary" id="student-modal-delete">刪除</button>
+        <button type="button" class="button secondary" id="student-modal-cancel">取消</button>
+        <button type="button" class="button" id="student-modal-save">儲存</button>
+      </footer>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="bulk-modal" hidden>
+    <div class="modal-panel" role="dialog" aria-modal="true" aria-labelledby="bulk-modal-title">
+      <header class="modal-header">
+        <h2 id="bulk-modal-title">批次建立學生</h2>
+        <button type="button" class="modal-close" id="bulk-modal-close" aria-label="close">×</button>
+      </header>
+      <div class="modal-body">
+        <div class="form-row">
+          <label for="bm-count">人數</label>
+          <input id="bm-count" type="number" min="1" max="80" value="30" />
+        </div>
+        <div class="form-row">
+          <label for="bm-prefix">姓名前綴</label>
+          <input id="bm-prefix" type="text" value="學生" />
+        </div>
+        <div class="form-row">
+          <label for="bm-start">起始座號</label>
+          <input id="bm-start" type="number" min="1" max="200" value="1" />
+        </div>
+        <p class="hint">先建立空白學生卡,之後點卡片開啟編輯視窗補齊姓名/性別/座號。</p>
+      </div>
+      <footer class="modal-footer">
+        <button type="button" class="button secondary" id="bulk-modal-cancel">取消</button>
+        <button type="button" class="button" id="bulk-modal-confirm">建立</button>
+      </footer>
+    </div>
   </div>
 
   <script src="./app.js"></script>

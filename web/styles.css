@@ -586,6 +586,129 @@ input[type="number"]:focus, input[type="text"]:focus, select:focus {
   text-align: right;
 }
 
+/* Modal */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(20, 20, 19, 0.45);
+  -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+}
+
+.modal-backdrop[hidden] {
+  display: none !important;
+}
+
+.modal-panel {
+  background: var(--bg);
+  border-radius: 14px;
+  width: min(440px, 100%);
+  max-height: 88vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 30px 60px rgba(20, 20, 19, 0.35);
+  overflow: hidden;
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+}
+
+.modal-header h2 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.modal-close {
+  background: transparent;
+  border: none;
+  font-size: 22px;
+  color: var(--muted);
+  cursor: pointer;
+  line-height: 1;
+  padding: 0 4px;
+}
+
+.modal-close:hover {
+  color: var(--text);
+}
+
+.modal-body {
+  padding: 16px 20px;
+  overflow-y: auto;
+}
+
+.modal-footer {
+  display: flex;
+  gap: 8px;
+  padding: 14px 20px;
+  border-top: 1px solid var(--border);
+  background: var(--bg2);
+}
+
+.modal-footer .button {
+  flex: 1;
+}
+
+/* Seat edge handles for pulling out aisles */
+.seat-edge {
+  position: absolute;
+  background: transparent;
+  z-index: 2;
+}
+
+.seat-edge.right { top: 6px; bottom: 6px; right: -4px; width: 10px; cursor: col-resize; }
+.seat-edge.bottom { left: 6px; right: 6px; bottom: -4px; height: 10px; cursor: row-resize; }
+
+.seat-edge:hover {
+  background: rgba(217, 119, 87, 0.2);
+  border-radius: 4px;
+}
+
+.seat-edge.active {
+  background: rgba(217, 119, 87, 0.55);
+}
+
+.grid.inserting-col::after,
+.grid.inserting-row::after {
+  content: '拖到想要插入走道的位置';
+  position: absolute;
+  top: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--orange);
+  color: white;
+  font-size: 12px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  pointer-events: none;
+  z-index: 3;
+}
+
+.grid-wrap { position: relative; }
+
+.insert-guide {
+  position: absolute;
+  background: rgba(217, 119, 87, 0.6);
+  pointer-events: none;
+  z-index: 5;
+  border-radius: 3px;
+  box-shadow: 0 0 12px rgba(217, 119, 87, 0.6);
+}
+
+.insert-guide.vertical { width: 4px; }
+.insert-guide.horizontal { height: 4px; }
+
 @media (max-width: 900px) {
   .container {
     flex-direction: column;
