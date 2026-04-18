@@ -1,32 +1,19 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "functions": {
-    "api/health.py": {
-      "runtime": "@vercel/python@4.3.1",
-      "includeFiles": "{models,utils}/**"
-    },
-    "api/auto-arrange.py": {
-      "runtime": "@vercel/python@4.3.1",
-      "includeFiles": "{models,utils}/**"
-    },
-    "api/evaluate.py": {
-      "runtime": "@vercel/python@4.3.1",
-      "includeFiles": "{models,utils}/**"
-    },
-    "api/export-pdf.py": {
-      "runtime": "@vercel/python@4.3.1",
-      "includeFiles": "{models,utils}/**"
-    },
-    "api/export-xlsx.py": {
-      "runtime": "@vercel/python@4.3.1",
-      "includeFiles": "{models,utils}/**"
-    }
-  },
-  "rewrites": [
-    { "source": "/", "destination": "/web/index.html" },
-    { "source": "/web", "destination": "/web/index.html" },
-    { "source": "/web/", "destination": "/web/index.html" },
-    { "source": "/api/export/pdf", "destination": "/api/export-pdf" },
-    { "source": "/api/export/xlsx", "destination": "/api/export-xlsx" }
+  "builds": [
+    { "src": "web/**", "use": "@vercel/static" },
+    { "src": "api/health.py", "use": "@vercel/python", "config": { "includeFiles": "{models,utils}/**" } },
+    { "src": "api/auto-arrange.py", "use": "@vercel/python", "config": { "includeFiles": "{models,utils}/**" } },
+    { "src": "api/evaluate.py", "use": "@vercel/python", "config": { "includeFiles": "{models,utils}/**" } },
+    { "src": "api/export-pdf.py", "use": "@vercel/python", "config": { "includeFiles": "{models,utils}/**" } },
+    { "src": "api/export-xlsx.py", "use": "@vercel/python", "config": { "includeFiles": "{models,utils}/**" } }
+  ],
+  "routes": [
+    { "src": "/api/export/pdf", "dest": "/api/export-pdf" },
+    { "src": "/api/export/xlsx", "dest": "/api/export-xlsx" },
+    { "src": "/api/(.*)", "dest": "/api/$1" },
+    { "src": "/", "dest": "/web/index.html" },
+    { "src": "/web/?", "dest": "/web/index.html" },
+    { "src": "/(.*)", "dest": "/web/$1" }
   ]
 }
