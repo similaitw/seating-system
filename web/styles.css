@@ -340,6 +340,9 @@ input[type="number"]:focus, input[type="text"]:focus, select:focus {
 .avoid-list {
   display: grid;
   gap: 8px;
+  max-height: 160px;
+  overflow-y: auto;
+  padding-right: 4px;
 }
 
 .avoid-item {
@@ -429,19 +432,33 @@ input[type="number"]:focus, input[type="text"]:focus, select:focus {
 .main {
   flex: 1;
   min-width: 0;
-  display: flex;
-  flex-direction: column;
+  display: grid;
   gap: 14px;
-  align-items: stretch;
+  grid-template-columns: auto 1fr auto;
+  grid-template-rows: auto 1fr auto auto;
+  grid-template-areas:
+    ".         desk-top    ."
+    "desk-left grid        desk-right"
+    ".         desk-bottom ."
+    "status    status      status";
 }
 
+.main .desk { display: none; }
+.main .desk.active { display: flex; align-items: center; justify-content: center; }
+.main .desk.front  { grid-area: desk-top; }
+.main .desk.back   { grid-area: desk-bottom; }
+.main .desk.left   { grid-area: desk-left; writing-mode: vertical-rl; transform: rotate(180deg); }
+.main .desk.right  { grid-area: desk-right; writing-mode: vertical-rl; }
+.main .grid-wrap { grid-area: grid; }
+.main .status    { grid-area: status; }
+
 .grid-wrap {
-  flex: 1;
   background: white;
   border-radius: 12px;
   box-shadow: 0 20px 40px var(--shadow);
   overflow: hidden;
   border: 1px solid rgba(232, 230, 220, 0.9);
+  min-height: 360px;
 }
 
 .grid {
@@ -465,6 +482,26 @@ input[type="number"]:focus, input[type="text"]:focus, select:focus {
   justify-content: space-between;
   gap: 10px;
   cursor: pointer;
+  transition: transform 0.12s ease, box-shadow 0.12s ease, opacity 0.12s ease;
+}
+
+.seat.has-occupant {
+  cursor: grab;
+}
+
+.seat.has-occupant:active {
+  cursor: grabbing;
+}
+
+.seat.dragging {
+  opacity: 0.35;
+  transform: scale(0.96);
+}
+
+.seat.swap-target {
+  border-color: rgba(217, 119, 87, 0.9) !important;
+  box-shadow: 0 0 0 3px rgba(217, 119, 87, 0.22), 0 14px 28px rgba(217, 119, 87, 0.18) !important;
+  transform: scale(1.02);
 }
 
 .seat.empty {
@@ -535,7 +572,6 @@ input[type="number"]:focus, input[type="text"]:focus, select:focus {
 }
 
 .desk {
-  align-self: center;
   padding: 10px 14px;
   background: rgba(20, 20, 19, 0.06);
   border: 1px solid rgba(20, 20, 19, 0.12);
@@ -543,11 +579,6 @@ input[type="number"]:focus, input[type="text"]:focus, select:focus {
   color: var(--muted);
   font-size: 12px;
 }
-
-.desk.front { align-self: center; }
-.desk.back { align-self: center; }
-.desk.left { align-self: flex-start; }
-.desk.right { align-self: flex-end; }
 
 .status {
   font-size: 12px;

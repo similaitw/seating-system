@@ -38,7 +38,7 @@
           <button class="button secondary" id="toggle-empty-mode">編輯空位：關</button>
           <button class="button secondary" id="toggle-lock-mode">鎖定座位：關</button>
         </div>
-        <p class="hint">提示：開啟「編輯空位」後，點座位可切換走道/空位；開啟「鎖定座位」後，點座位可鎖定（自動排座不會動）。</p>
+        <p class="hint">提示：雙擊座位可快速切換空位/走道；開啟「鎖定座位」後點座位鎖定（自動排座不會動）。拖拉座位可與目標座位交換。</p>
       </section>
 
       <section class="control-section">
@@ -114,9 +114,10 @@
         <div class="control-group">
           <label>避開相鄰（配對）</label>
           <div class="pair-row">
-            <select id="avoid-a"></select>
-            <select id="avoid-b"></select>
+            <input id="avoid-a" type="text" list="avoid-options" placeholder="學生 A（打字搜尋）" autocomplete="off" />
+            <input id="avoid-b" type="text" list="avoid-options" placeholder="學生 B（打字搜尋）" autocomplete="off" />
           </div>
+          <datalist id="avoid-options"></datalist>
           <button class="button tertiary" id="avoid-add">加入配對</button>
           <div class="avoid-list" id="avoid-list"></div>
         </div>

@@ -992,7 +992,7 @@
     if (el.python_evaluate) el.python_evaluate.disabled = !state.api.online;
 
     // Desk indicator
-    el.desk.className = `desk ${state.classroom.teacher_desk_position}`;
+    el.desk.className = `desk active ${state.classroom.teacher_desk_position}`;
 
     // Status
     const posByStudent = buildPosByStudent();
@@ -1035,31 +1035,16 @@
 
   function renderAvoidControls() {
     const students = [...state.students].sort((a, b) => (a.seat_number ?? 0) - (b.seat_number ?? 0));
-    const makeOption = (s) => {
-      const o = document.createElement('option');
-      o.value = s.id;
-      o.textContent = `${s.seat_number ?? ''} ${s.name}`;
-      return o;
-    };
-
-    const prevA = el.avoid_a.value;
-    const prevB = el.avoid_b.value;
-    el.avoid_a.innerHTML = '';
-    el.avoid_b.innerHTML = '';
-    const blankA = document.createElement('option');
-    blankA.value = '';
-    blankA.textContent = '（選擇學生 A）';
-    const blankB = document.createElement('option');
-    blankB.value = '';
-    blankB.textContent = '（選擇學生 B）';
-    el.avoid_a.appendChild(blankA);
-    el.avoid_b.appendChild(blankB);
-    for (const s of students) {
-      el.avoid_a.appendChild(makeOption(s));
-      el.avoid_b.appendChild(makeOption(s.clone ? s.clone() : s));
+    const datalist = document.getElementById('avoid-options');
+    if (datalist) {
+      datalist.innerHTML = '';
+      for (const s of students) {
+        const o = document.createElement('option');
+        o.value = `${s.seat_number ?? ''} ${s.name}`.trim();
+        o.dataset.studentId = s.id;
+        datalist.appendChild(o);
+      }
     }
-    if (prevA) el.avoid_a.value = prevA;
-    if (prevB) el.avoid_b.value = prevB;
 
     // Avoid list
     el.avoid_list.innerHTML = '';
@@ -1184,6 +1169,10 @@
 
         if (emptySet.has(key)) {
           seat.textContent = '空位';
+          seat.addEventListener('dblclick', (ev) => {
+            ev.preventDefault();
+            commit(() => toggleEmptySeat(r, c), '已更新空位');
+          });
         } else {
           const label = document.createElement('div');
           label.className = 'seat-label';
@@ -1198,11 +1187,10 @@
           }
 
           if (occupantId) {
+            seat.classList.add('has-occupant');
             const s = studentMap.get(occupantId);
             const occ = document.createElement('div');
             occ.className = 'seat-occupant';
-            occ.draggable = true;
-            occ.dataset.studentId = occupantId;
 
             const nm = document.createElement('div');
             nm.className = 'name';
@@ -1214,40 +1202,36 @@
 
             occ.appendChild(nm);
             occ.appendChild(sub);
+            seat.appendChild(occ);
 
-            occ.addEventListener('dragstart', (ev) => {
+            seat.draggable = true;
+            seat.dataset.studentId = occupantId;
+            seat.addEventListener('dragstart', (ev) => {
               const payload = JSON.stringify({ studentId: occupantId });
               ev.dataTransfer.setData('text/plain', payload);
               ev.dataTransfer.setData('application/json', payload);
               ev.dataTransfer.effectAllowed = 'move';
+              seat.classList.add('dragging');
             });
-
-            occ.addEventListener('click', (ev) => {
-              ev.stopPropagation();
-              state.ui.selected_student_id = occupantId;
-              state.ui.selected_seat = [r, c];
-              state.status_message = '';
-              render();
-              scheduleSave();
+            seat.addEventListener('dragend', () => {
+              seat.classList.remove('dragging');
             });
-
-            seat.appendChild(occ);
           }
 
           seat.addEventListener('dragover', (ev) => {
             if (emptySet.has(key)) return;
             ev.preventDefault();
-            seat.classList.add('dragover');
+            seat.classList.add('swap-target');
             ev.dataTransfer.dropEffect = 'move';
           });
 
           seat.addEventListener('dragleave', () => {
-            seat.classList.remove('dragover');
+            seat.classList.remove('swap-target');
           });
 
           seat.addEventListener('drop', (ev) => {
             ev.preventDefault();
-            seat.classList.remove('dragover');
+            seat.classList.remove('swap-target');
             const payload = getDragPayload(ev);
             if (!payload?.studentId) return;
             const studentId = payload.studentId;
@@ -1271,6 +1255,11 @@
             state.status_message = '';
             render();
             scheduleSave();
+          });
+
+          seat.addEventListener('dblclick', (ev) => {
+            ev.preventDefault();
+            commit(() => toggleEmptySeat(r, c), '已更新空位');
           });
         }
 
@@ -1600,15 +1589,26 @@
     el.near_band.addEventListener('change', () => commit(() => { state.rules.near_band = clampInt(el.near_band.value, 1, 10); }));
     el.rule_check_aisle.addEventListener('change', () => commit(() => { state.rules.check_aisle = el.rule_check_aisle.checked; }));
 
+    const resolveStudentFromInput = (raw) => {
+      const q = String(raw ?? '').trim().toLowerCase();
+      if (!q) return null;
+      const byLabel = state.students.find((s) => `${s.seat_number ?? ''} ${s.name}`.trim().toLowerCase() === q);
+      if (byLabel) return byLabel;
+      return state.students.find((s) => {
+        const hay = `${s.seat_number ?? ''} ${s.name} ${s.id}`.toLowerCase();
+        return hay.includes(q);
+      }) || null;
+    };
+
     el.avoid_add.addEventListener('click', () => {
-      const a = el.avoid_a.value;
-      const b = el.avoid_b.value;
-      if (!a || !b || a === b) {
-        state.status_message = '請選擇兩位不同學生';
+      const sa = resolveStudentFromInput(el.avoid_a.value);
+      const sb = resolveStudentFromInput(el.avoid_b.value);
+      if (!sa || !sb || sa.id === sb.id) {
+        state.status_message = '請輸入兩位不同學生（支援姓名或座號)';
         render();
         return;
       }
-      const key = [a, b].sort().join('|');
+      const key = [sa.id, sb.id].sort().join('|');
       const existing = new Set((state.rules.avoid_pairs ?? []).map((p) => [...p].sort().join('|')));
       if (existing.has(key)) {
         state.status_message = '配對已存在';
@@ -1616,7 +1616,9 @@
         return;
       }
       commit(() => {
-        state.rules.avoid_pairs.push([a, b]);
+        state.rules.avoid_pairs.push([sa.id, sb.id]);
+        el.avoid_a.value = '';
+        el.avoid_b.value = '';
         state.status_message = '已加入配對';
       });
     });
