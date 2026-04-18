@@ -1,11 +1,26 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "functions": {
-    "api/health.py": { "includeFiles": "{models,utils}/**" },
-    "api/auto-arrange.py": { "includeFiles": "{models,utils}/**" },
-    "api/evaluate.py": { "includeFiles": "{models,utils}/**" },
-    "api/export-pdf.py": { "includeFiles": "{models,utils}/**" },
-    "api/export-xlsx.py": { "includeFiles": "{models,utils}/**" }
+    "api/health.py": {
+      "runtime": "@vercel/python@4.3.1",
+      "includeFiles": "{models,utils}/**"
+    },
+    "api/auto-arrange.py": {
+      "runtime": "@vercel/python@4.3.1",
+      "includeFiles": "{models,utils}/**"
+    },
+    "api/evaluate.py": {
+      "runtime": "@vercel/python@4.3.1",
+      "includeFiles": "{models,utils}/**"
+    },
+    "api/export-pdf.py": {
+      "runtime": "@vercel/python@4.3.1",
+      "includeFiles": "{models,utils}/**"
+    },
+    "api/export-xlsx.py": {
+      "runtime": "@vercel/python@4.3.1",
+      "includeFiles": "{models,utils}/**"
+    }
   },
   "rewrites": [
     { "source": "/", "destination": "/web/index.html" },
