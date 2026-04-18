@@ -1,6 +1,5 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "outputDirectory": "web",
   "functions": {
     "api/health.py": {
       "runtime": "@vercel/python@4.3.1",
@@ -24,6 +23,9 @@
     }
   },
   "rewrites": [
+    { "source": "/", "destination": "/web/index.html" },
+    { "source": "/web", "destination": "/web/index.html" },
+    { "source": "/web/", "destination": "/web/index.html" },
     { "source": "/api/export/pdf", "destination": "/api/export-pdf" },
     { "source": "/api/export/xlsx", "destination": "/api/export-xlsx" }
   ]
