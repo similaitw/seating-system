@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>互動式教室排座系統</title>
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <div class="container">
+    <aside class="sidebar">
+      <header class="sidebar-header">
+        <h1>互動式教室排座</h1>
+        <p class="subtitle">拖拉學生卡片到座位；即時檢查規則；一鍵自動排座。</p>
+      </header>
+
+      <section class="control-section">
+        <h3>教室</h3>
+        <div class="form-row">
+          <label for="rows-input">排數</label>
+          <input id="rows-input" type="number" min="1" max="30" value="5" />
+        </div>
+        <div class="form-row">
+          <label for="cols-input">列數</label>
+          <input id="cols-input" type="number" min="1" max="30" value="6" />
+        </div>
+        <div class="form-row">
+          <label for="desk-select">講桌</label>
+          <select id="desk-select">
+            <option value="front">前方</option>
+            <option value="back">後方</option>
+            <option value="left">左側</option>
+            <option value="right">右側</option>
+          </select>
+        </div>
+
+        <div class="button-row">
+          <button class="button secondary" id="toggle-empty-mode">編輯空位：關</button>
+          <button class="button secondary" id="toggle-lock-mode">鎖定座位：關</button>
+        </div>
+        <p class="hint">提示：開啟「編輯空位」後，點座位可切換走道/空位；開啟「鎖定座位」後，點座位可鎖定（自動排座不會動）。</p>
+      </section>
+
+      <section class="control-section">
+        <h3>選取</h3>
+        <div class="selection" id="selection-summary">尚未選取</div>
+        <div class="button-row">
+          <button class="button secondary" id="assign-selected">指定到座位</button>
+          <button class="button secondary" id="unassign-selected">移出座位</button>
+        </div>
+        <div class="button-row">
+          <button class="button tertiary" id="set-fixed">設為固定座位</button>
+          <button class="button tertiary" id="clear-fixed">清除固定座位</button>
+        </div>
+      </section>
+
+      <section class="control-section">
+        <h3>學生</h3>
+        <div class="button-row">
+          <button class="button secondary" id="load-sample">載入範例</button>
+          <button class="button secondary" id="clear-all">清空</button>
+        </div>
+
+        <div class="control-group">
+          <label for="import-students">匯入學生（JSON / CSV）</label>
+          <input id="import-students" type="file" accept=".json,.csv" />
+        </div>
+
+        <div class="control-group">
+          <label for="student-filter">搜尋</label>
+          <input id="student-filter" type="text" placeholder="姓名 / 座號 / 性別..." />
+        </div>
+
+        <div class="student-list" id="student-list" aria-label="unassigned students"></div>
+
+        <div class="unassigned-drop" id="unassigned-drop" aria-label="unassign dropzone">
+          把座位上的學生拖到這裡：取消座位
+        </div>
+      </section>
+
+      <section class="control-section">
+        <h3>規則</h3>
+        <div class="toggle-row">
+          <input id="rule-alternating-gender" type="checkbox" checked />
+          <label for="rule-alternating-gender">相鄰不可同姓別（上下左右）</label>
+        </div>
+        <div class="toggle-row">
+          <input id="rule-enforce-fixed" type="checkbox" checked />
+          <label for="rule-enforce-fixed">固定座位必須符合</label>
+        </div>
+        <div class="toggle-row">
+          <input id="rule-check-front" type="checkbox" checked />
+          <label for="rule-check-front">need_front_seat 必須在前排</label>
+        </div>
+        <div class="form-row">
+          <label for="front-rows">前排範圍</label>
+          <input id="front-rows" type="number" min="1" max="10" value="2" />
+        </div>
+
+        <div class="toggle-row">
+          <input id="rule-check-near-teacher" type="checkbox" />
+          <label for="rule-check-near-teacher">need_near_teacher 靠近講桌</label>
+        </div>
+        <div class="form-row">
+          <label for="near-band">靠近範圍</label>
+          <input id="near-band" type="number" min="1" max="10" value="2" />
+        </div>
+
+        <div class="toggle-row">
+          <input id="rule-check-aisle" type="checkbox" />
+          <label for="rule-check-aisle">need_aisle_seat 走道旁（左右邊界或鄰空位）</label>
+        </div>
+
+        <div class="control-group">
+          <label>避開相鄰（配對）</label>
+          <div class="pair-row">
+            <select id="avoid-a"></select>
+            <select id="avoid-b"></select>
+          </div>
+          <button class="button tertiary" id="avoid-add">加入配對</button>
+          <div class="avoid-list" id="avoid-list"></div>
+        </div>
+      </section>
+
+      <section class="control-section">
+        <h3>動作</h3>
+        <div class="form-row">
+          <label for="auto-mode">自動排座</label>
+          <select id="auto-mode">
+            <option value="seat_number">按座號</option>
+            <option value="alternating_gender">男女間隔</option>
+            <option value="by_height">按身高（前矮後高）</option>
+            <option value="by_vision">按視力（差的在前）</option>
+            <option value="random">隨機</option>
+            <option value="optimize">最佳化（違規最少）</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <label for="engine-select">引擎</label>
+          <select id="engine-select">
+            <option value="browser">瀏覽器</option>
+            <option value="python">Python（server.py）</option>
+          </select>
+        </div>
+        <div class="api-status" id="api-status">API：檢查中…</div>
+        <div class="button-row">
+          <button class="button secondary" id="auto-run">執行</button>
+          <button class="button secondary" id="python-evaluate">Python 評分</button>
+        </div>
+        <div class="button-row">
+          <button class="button secondary" id="undo">Undo</button>
+          <button class="button secondary" id="redo">Redo</button>
+        </div>
+        <div class="button-row">
+          <button class="button tertiary" id="download-state">下載 JSON</button>
+          <label class="button tertiary file-button">
+            載入 JSON
+            <input id="load-state" type="file" accept=".json" />
+          </label>
+        </div>
+        <div class="button-row">
+          <button class="button tertiary" id="export-csv">匯出 CSV</button>
+          <button class="button tertiary" id="export-xlsx">匯出 Excel</button>
+        </div>
+        <div class="button-row">
+          <button class="button tertiary" id="export-pdf">匯出 PDF</button>
+          <button class="button tertiary" id="clear-arrangement">清空座位</button>
+        </div>
+      </section>
+
+      <section class="control-section">
+        <h3>違規</h3>
+        <div class="violations" id="violations"></div>
+      </section>
+
+      <footer class="footer">
+        <a href="../art/constraint-bloom.html" target="_blank" rel="noopener">Constraint Bloom（生成藝術）</a>
+        <span class="footer-sep">·</span>
+        <button class="link-button" id="clear-local">清除本機暫存</button>
+      </footer>
+    </aside>
+
+    <main class="main">
+      <div class="desk" id="desk">講桌</div>
+      <div class="grid-wrap">
+        <div class="grid" id="grid" aria-label="seating grid"></div>
+      </div>
+      <div class="status" id="status"></div>
+    </main>
+  </div>
+
+  <script src="./app.js"></script>
+</body>
+</html>

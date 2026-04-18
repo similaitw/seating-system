@@ -1,0 +1,940 @@
+<!DOCTYPE html>
+<!--
+    Based on the algorithmic-art template (single self-contained artifact).
+    Fixed: layout + Anthropic-style UI, seed navigation, actions.
+    Variable: algorithm, parameters, controls.
+-->
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Constraint Bloom</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.7.0/p5.min.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&family=Lora:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        /* Anthropic Brand Colors */
+        :root {
+            --anthropic-dark: #141413;
+            --anthropic-light: #faf9f5;
+            --anthropic-mid-gray: #b0aea5;
+            --anthropic-light-gray: #e8e6dc;
+            --anthropic-orange: #d97757;
+            --anthropic-blue: #6a9bcc;
+            --anthropic-green: #788c5d;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: linear-gradient(135deg, var(--anthropic-light) 0%, #f5f3ee 100%);
+            min-height: 100vh;
+            color: var(--anthropic-dark);
+        }
+
+        .container {
+            display: flex;
+            min-height: 100vh;
+            padding: 20px;
+            gap: 20px;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 320px;
+            flex-shrink: 0;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 24px;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(20, 20, 19, 0.1);
+            overflow-y: auto;
+            overflow-x: hidden;
+        }
+
+        .sidebar h1 {
+            font-family: 'Lora', serif;
+            font-size: 24px;
+            font-weight: 500;
+            color: var(--anthropic-dark);
+            margin-bottom: 8px;
+        }
+
+        .sidebar .subtitle {
+            color: var(--anthropic-mid-gray);
+            font-size: 14px;
+            margin-bottom: 32px;
+            line-height: 1.4;
+        }
+
+        /* Control Sections */
+        .control-section {
+            margin-bottom: 32px;
+        }
+
+        .control-section h3 {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--anthropic-dark);
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .control-section h3::before {
+            content: '•';
+            color: var(--anthropic-orange);
+            font-weight: bold;
+        }
+
+        /* Seed Controls */
+        .seed-input {
+            width: 100%;
+            background: var(--anthropic-light);
+            padding: 12px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            margin-bottom: 12px;
+            border: 1px solid var(--anthropic-light-gray);
+            text-align: center;
+        }
+
+        .seed-input:focus {
+            outline: none;
+            border-color: var(--anthropic-orange);
+            box-shadow: 0 0 0 2px rgba(217, 119, 87, 0.1);
+            background: white;
+        }
+
+        .seed-controls {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+
+        .regen-button {
+            margin-bottom: 0;
+        }
+
+        /* Parameter Controls */
+        .control-group {
+            margin-bottom: 20px;
+        }
+
+        .control-group label {
+            display: block;
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--anthropic-dark);
+            margin-bottom: 8px;
+        }
+
+        .slider-container {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .slider-container input[type="range"] {
+            flex: 1;
+            height: 4px;
+            background: var(--anthropic-light-gray);
+            border-radius: 2px;
+            outline: none;
+            -webkit-appearance: none;
+        }
+
+        .slider-container input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 16px;
+            height: 16px;
+            background: var(--anthropic-orange);
+            border-radius: 50%;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .slider-container input[type="range"]::-webkit-slider-thumb:hover {
+            transform: scale(1.1);
+            background: #c86641;
+        }
+
+        .slider-container input[type="range"]::-moz-range-thumb {
+            width: 16px;
+            height: 16px;
+            background: var(--anthropic-orange);
+            border-radius: 50%;
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .value-display {
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            color: var(--anthropic-mid-gray);
+            min-width: 60px;
+            text-align: right;
+        }
+
+        /* Color Pickers */
+        .color-group {
+            margin-bottom: 16px;
+        }
+
+        .color-group label {
+            display: block;
+            font-size: 12px;
+            color: var(--anthropic-mid-gray);
+            margin-bottom: 4px;
+        }
+
+        .color-picker-container {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .color-picker-container input[type="color"] {
+            width: 32px;
+            height: 32px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            background: none;
+            padding: 0;
+        }
+
+        .color-value {
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            color: var(--anthropic-mid-gray);
+        }
+
+        /* Buttons */
+        .button {
+            background: var(--anthropic-orange);
+            color: white;
+            border: none;
+            padding: 10px 16px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            width: 100%;
+        }
+
+        .button:hover {
+            background: #c86641;
+            transform: translateY(-1px);
+        }
+
+        .button:active {
+            transform: translateY(0);
+        }
+
+        .button.secondary {
+            background: var(--anthropic-blue);
+        }
+
+        .button.secondary:hover {
+            background: #5a8bb8;
+        }
+
+        .button.tertiary {
+            background: var(--anthropic-green);
+        }
+
+        .button.tertiary:hover {
+            background: #6b7b52;
+        }
+
+        .button-row {
+            display: flex;
+            gap: 8px;
+        }
+
+        .button-row .button {
+            flex: 1;
+        }
+
+        .seed-go {
+            margin-bottom: 8px;
+        }
+
+        /* Canvas Area */
+        .canvas-area {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 0;
+        }
+
+        #canvas-container {
+            width: 100%;
+            max-width: 1000px;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 20px 40px rgba(20, 20, 19, 0.1);
+            background: white;
+        }
+
+        #canvas-container canvas {
+            display: block;
+            width: 100% !important;
+            height: auto !important;
+        }
+
+        /* Loading State */
+        .loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            color: var(--anthropic-mid-gray);
+        }
+
+        /* Responsive - Stack on mobile */
+        @media (max-width: 600px) {
+            .container {
+                flex-direction: column;
+            }
+
+            .sidebar {
+                width: 100%;
+            }
+
+            .canvas-area {
+                padding: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Control Sidebar -->
+        <div class="sidebar">
+            <!-- Headers -->
+            <h1>Constraint Bloom</h1>
+            <div class="subtitle">Rules become forces; seats become anchors; order blooms through motion.</div>
+
+            <!-- Seed Section (FIXED) -->
+            <div class="control-section">
+                <h3>Seed</h3>
+                <input type="number" id="seed-input" class="seed-input" value="12345">
+                <div class="seed-controls">
+                    <button class="button secondary" onclick="previousSeed()">← Prev</button>
+                    <button class="button secondary" onclick="nextSeed()">Next →</button>
+                </div>
+                <button class="button secondary seed-go" onclick="updateSeed()">Go</button>
+                <button class="button tertiary regen-button" onclick="randomSeedAndUpdate()">↻ Random</button>
+            </div>
+
+            <!-- Parameters Section (VARIABLE) -->
+            <div class="control-section">
+                <h3>Parameters</h3>
+
+                <div class="control-group">
+                    <label>Rows</label>
+                    <div class="slider-container">
+                        <input type="range" id="rows" min="4" max="20" step="1" value="10" oninput="updateParam('rows', this.value)">
+                        <span class="value-display" id="rows-value">10</span>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label>Cols</label>
+                    <div class="slider-container">
+                        <input type="range" id="cols" min="4" max="20" step="1" value="12" oninput="updateParam('cols', this.value)">
+                        <span class="value-display" id="cols-value">12</span>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label>Agents</label>
+                    <div class="slider-container">
+                        <input type="range" id="agentCount" min="40" max="400" step="10" value="180" oninput="updateParam('agentCount', this.value)">
+                        <span class="value-display" id="agentCount-value">180</span>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label>Seat Jitter</label>
+                    <div class="slider-container">
+                        <input type="range" id="seatJitter" min="0" max="40" step="1" value="14" oninput="updateParam('seatJitter', this.value)">
+                        <span class="value-display" id="seatJitter-value">14</span>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label>Noise Scale</label>
+                    <div class="slider-container">
+                        <input type="range" id="noiseScale" min="0.001" max="0.02" step="0.001" value="0.004" oninput="updateParam('noiseScale', this.value)">
+                        <span class="value-display" id="noiseScale-value">0.004</span>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label>Flow Strength</label>
+                    <div class="slider-container">
+                        <input type="range" id="flowStrength" min="0.2" max="3.0" step="0.1" value="1.2" oninput="updateParam('flowStrength', this.value)">
+                        <span class="value-display" id="flowStrength-value">1.2</span>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label>Repulsion</label>
+                    <div class="slider-container">
+                        <input type="range" id="repulsion" min="0.0" max="3.0" step="0.1" value="1.0" oninput="updateParam('repulsion', this.value)">
+                        <span class="value-display" id="repulsion-value">1.0</span>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label>Avoid Pairs</label>
+                    <div class="slider-container">
+                        <input type="range" id="avoidPairs" min="0" max="220" step="10" value="80" oninput="updateParam('avoidPairs', this.value)">
+                        <span class="value-display" id="avoidPairs-value">80</span>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label>Fade</label>
+                    <div class="slider-container">
+                        <input type="range" id="fade" min="0" max="35" step="1" value="10" oninput="updateParam('fade', this.value)">
+                        <span class="value-display" id="fade-value">10</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Colors Section (OPTIONAL) -->
+            <div class="control-section">
+                <h3>Colors</h3>
+
+                <div class="color-group">
+                    <label>Primary</label>
+                    <div class="color-picker-container">
+                        <input type="color" id="color1" value="#d97757" onchange="updateColor('color1', this.value)">
+                        <span class="color-value" id="color1-value">#d97757</span>
+                    </div>
+                </div>
+
+                <div class="color-group">
+                    <label>Secondary</label>
+                    <div class="color-picker-container">
+                        <input type="color" id="color2" value="#6a9bcc" onchange="updateColor('color2', this.value)">
+                        <span class="color-value" id="color2-value">#6a9bcc</span>
+                    </div>
+                </div>
+
+                <div class="color-group">
+                    <label>Accent</label>
+                    <div class="color-picker-container">
+                        <input type="color" id="color3" value="#788c5d" onchange="updateColor('color3', this.value)">
+                        <span class="color-value" id="color3-value">#788c5d</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Actions Section (FIXED) -->
+            <div class="control-section">
+                <h3>Actions</h3>
+                <div class="button-row">
+                    <button class="button secondary" onclick="regenerate()">Regenerate</button>
+                    <button class="button" onclick="resetParameters()">Reset</button>
+                </div>
+                <button class="button tertiary regen-button" onclick="downloadPNG()">⬇ Download PNG</button>
+            </div>
+        </div>
+
+        <!-- Main Canvas Area -->
+        <div class="canvas-area">
+            <div id="canvas-container">
+                <div class="loading">Initializing generative art...</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ═══════════════════════════════════════════════════════════════════════
+        // GENERATIVE ART PARAMETERS
+        // ═══════════════════════════════════════════════════════════════════════
+
+        let params = {
+            seed: 12345,
+            rows: 10,
+            cols: 12,
+            agentCount: 180,
+            seatJitter: 14,
+            noiseScale: 0.004,
+            flowStrength: 1.2,
+            repulsion: 1.0,
+            avoidPairs: 80,
+            fade: 10,
+            colorPalette: ['#d97757', '#6a9bcc', '#788c5d']
+        };
+
+        let defaultParams = {...params}; // Store defaults for reset
+
+        // ═══════════════════════════════════════════════════════════════════════
+        // P5.JS ALGORITHM — Constraint Bloom
+        // Seats are anchors; rules are forces; trails are memory.
+        // ═══════════════════════════════════════════════════════════════════════
+
+        let mainCanvas = null;
+        let seatAnchors = []; // {x, y, r, c}
+        let seatLayer = null;
+        let agents = [];
+
+        // adjacency-based "avoid" constraints: list per agent
+        let avoidAdj = [];
+
+        // lightweight spatial hashing for local repulsion
+        let spatial = new Map();
+        let cellSize = 46;
+
+        let t = 0;
+
+        function setup() {
+            mainCanvas = createCanvas(1200, 1200);
+            mainCanvas.parent('canvas-container');
+            pixelDensity(1);
+            initializeSystem();
+
+            const loading = document.querySelector('.loading');
+            if (loading) loading.style.display = 'none';
+        }
+
+        function initializeSystem() {
+            randomSeed(params.seed);
+            noiseSeed(params.seed);
+            t = 0;
+
+            // build seat anchors (grid as a disciplined skeleton)
+            seatAnchors = buildAnchors(params.rows, params.cols, params.seatJitter);
+
+            // clamp agent count to available anchors
+            params.agentCount = Math.min(params.agentCount, seatAnchors.length);
+            syncControlValue('agentCount', params.agentCount, true);
+
+            // pre-draw seat layer (subtle topology under the trails)
+            seatLayer = createGraphics(width, height);
+            seatLayer.clear();
+            seatLayer.noFill();
+            seatLayer.stroke(20, 20, 19, 35);
+            seatLayer.strokeWeight(1);
+            for (const a of seatAnchors) {
+                seatLayer.circle(a.x, a.y, 8);
+            }
+
+            // assign one agent to one seat (deterministic by seed)
+            agents = [];
+            const seatIndices = [];
+            for (let i = 0; i < seatAnchors.length; i++) seatIndices.push(i);
+            shuffleInPlace(seatIndices);
+
+            for (let i = 0; i < params.agentCount; i++) {
+                agents.push(new Agent(i, seatIndices[i]));
+            }
+
+            // generate avoid constraints along seat adjacency (like "cannot sit next to")
+            avoidAdj = Array.from({length: params.agentCount}, () => []);
+            buildAvoidAdjacency(params.avoidPairs);
+
+            // clear canvas
+            background(250, 249, 245);
+        }
+
+        function draw() {
+            // translucent wash to keep memory while allowing evolution
+            if (params.fade > 0) {
+                noStroke();
+                fill(250, 249, 245, params.fade);
+                rect(0, 0, width, height);
+            }
+
+            // faint seat topology
+            if (seatLayer) image(seatLayer, 0, 0);
+
+            buildSpatialIndex();
+
+            // evolve & draw
+            t += 0.008;
+            for (const a of agents) a.step();
+        }
+
+        function buildAnchors(rows, cols, jitter) {
+            const anchors = [];
+            const margin = 110;
+            const w = width - margin * 2;
+            const h = height - margin * 2;
+            const stepX = cols > 1 ? (w / (cols - 1)) : 0;
+            const stepY = rows > 1 ? (h / (rows - 1)) : 0;
+
+            for (let r = 0; r < rows; r++) {
+                for (let c = 0; c < cols; c++) {
+                    const baseX = margin + c * stepX;
+                    const baseY = margin + r * stepY;
+                    anchors.push({
+                        x: baseX + random(-jitter, jitter),
+                        y: baseY + random(-jitter, jitter),
+                        r,
+                        c
+                    });
+                }
+            }
+            return anchors;
+        }
+
+        function buildAvoidAdjacency(targetPairs) {
+            const maxPairs = Math.floor(params.agentCount * (params.agentCount - 1) / 2);
+            const wanted = Math.min(targetPairs, maxPairs);
+            if (wanted <= 0) return;
+
+            // map seatIndex -> agentIndex for adjacency-based constraints
+            const seatToAgent = new Map();
+            for (const a of agents) seatToAgent.set(a.seatIndex, a.index);
+
+            const seen = new Set();
+            const attempts = wanted * 30;
+            let added = 0;
+
+            for (let i = 0; i < attempts && added < wanted; i++) {
+                const seatIndex = floor(random(seatAnchors.length));
+                const neighborSeatIndex = pickNeighborSeatIndex(seatIndex);
+                if (neighborSeatIndex === null) continue;
+
+                const aIdx = seatToAgent.get(seatIndex);
+                const bIdx = seatToAgent.get(neighborSeatIndex);
+                if (aIdx === undefined || bIdx === undefined || aIdx === bIdx) continue;
+
+                const a = Math.min(aIdx, bIdx);
+                const b = Math.max(aIdx, bIdx);
+                const key = a + ':' + b;
+                if (seen.has(key)) continue;
+                seen.add(key);
+
+                avoidAdj[a].push(b);
+                avoidAdj[b].push(a);
+                added++;
+            }
+        }
+
+        function pickNeighborSeatIndex(seatIndex) {
+            const a = seatAnchors[seatIndex];
+            if (!a) return null;
+
+            const dirs = [
+                {dr: -1, dc: 0},
+                {dr: 1, dc: 0},
+                {dr: 0, dc: -1},
+                {dr: 0, dc: 1},
+            ];
+            const d = random(dirs);
+            const nr = a.r + d.dr;
+            const nc = a.c + d.dc;
+            if (nr < 0 || nr >= params.rows || nc < 0 || nc >= params.cols) return null;
+            return nr * params.cols + nc;
+        }
+
+        function shuffleInPlace(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = floor(random(i + 1));
+                const tmp = array[i];
+                array[i] = array[j];
+                array[j] = tmp;
+            }
+        }
+
+        function buildSpatialIndex() {
+            spatial.clear();
+            for (let i = 0; i < agents.length; i++) {
+                const a = agents[i];
+                const cx = Math.floor(a.x / cellSize);
+                const cy = Math.floor(a.y / cellSize);
+                const key = cx + ',' + cy;
+                const bucket = spatial.get(key);
+                if (bucket) bucket.push(i);
+                else spatial.set(key, [i]);
+            }
+        }
+
+        function forNearbyAgentIndices(x, y, fn) {
+            const cx = Math.floor(x / cellSize);
+            const cy = Math.floor(y / cellSize);
+            for (let ox = -1; ox <= 1; ox++) {
+                for (let oy = -1; oy <= 1; oy++) {
+                    const key = (cx + ox) + ',' + (cy + oy);
+                    const bucket = spatial.get(key);
+                    if (!bucket) continue;
+                    for (const idx of bucket) fn(idx);
+                }
+            }
+        }
+
+        class Agent {
+            constructor(index, seatIndex) {
+                this.index = index;
+                this.seatIndex = seatIndex;
+
+                const anchor = seatAnchors[seatIndex];
+                this.x = anchor.x + random(-18, 18);
+                this.y = anchor.y + random(-18, 18);
+                this.px = this.x;
+                this.py = this.y;
+
+                const ang = random(TWO_PI);
+                this.vx = Math.cos(ang) * 0.6;
+                this.vy = Math.sin(ang) * 0.6;
+
+                this.paletteIndex = index % params.colorPalette.length;
+            }
+
+            step() {
+                this.px = this.x;
+                this.py = this.y;
+
+                let ax = 0;
+                let ay = 0;
+
+                // anchor pull (order as gravity)
+                const anchor = seatAnchors[this.seatIndex];
+                const dxA = anchor.x - this.x;
+                const dyA = anchor.y - this.y;
+                ax += dxA * 0.0042;
+                ay += dyA * 0.0042;
+
+                // curl noise field (ambient turbulence)
+                const ns = params.noiseScale;
+                const e = 1;
+                const nx = this.x * ns;
+                const ny = this.y * ns;
+                const n1 = noise(nx + e * ns, ny, t);
+                const n2 = noise(nx - e * ns, ny, t);
+                const n3 = noise(nx, ny + e * ns, t);
+                const n4 = noise(nx, ny - e * ns, t);
+                const dndx = (n1 - n2);
+                const dndy = (n3 - n4);
+
+                // rotate gradient to obtain a curl-like vector
+                const curlX = dndy;
+                const curlY = -dndx;
+                const curlScale = 420;
+                ax += curlX * curlScale * params.flowStrength;
+                ay += curlY * curlScale * params.flowStrength;
+
+                // local repulsion (density control)
+                const r = 38;
+                const r2 = r * r;
+                const rep = params.repulsion;
+                if (rep > 0) {
+                    forNearbyAgentIndices(this.x, this.y, (j) => {
+                        if (j === this.index) return;
+                        const o = agents[j];
+                        const dx = this.x - o.x;
+                        const dy = this.y - o.y;
+                        const d2 = dx * dx + dy * dy;
+                        if (d2 <= 0 || d2 > r2) return;
+                        const d = Math.sqrt(d2);
+                        const f = (1 - (d / r)) * (rep * 0.55);
+                        const inv = 1 / d;
+                        ax += dx * inv * f;
+                        ay += dy * inv * f;
+                    });
+                }
+
+                // constraint repulsion (avoid adjacency)
+                const list = avoidAdj[this.index];
+                if (list && list.length) {
+                    const ar = 78;
+                    const ar2 = ar * ar;
+                    for (const j of list) {
+                        const o = agents[j];
+                        const dx = this.x - o.x;
+                        const dy = this.y - o.y;
+                        const d2 = dx * dx + dy * dy;
+                        if (d2 <= 0 || d2 > ar2) continue;
+                        const d = Math.sqrt(d2);
+                        const f = (1 - (d / ar)) * (rep * 1.35 + 0.6);
+                        const inv = 1 / d;
+                        ax += dx * inv * f;
+                        ay += dy * inv * f;
+                    }
+                }
+
+                // integrate (meticulously tuned damping and speed cap)
+                this.vx = (this.vx + ax) * 0.97;
+                this.vy = (this.vy + ay) * 0.97;
+
+                const maxV = 4.2 + params.flowStrength * 0.8;
+                const v2 = this.vx * this.vx + this.vy * this.vy;
+                if (v2 > maxV * maxV) {
+                    const inv = 1 / Math.sqrt(v2);
+                    this.vx = this.vx * inv * maxV;
+                    this.vy = this.vy * inv * maxV;
+                }
+
+                this.x += this.vx;
+                this.y += this.vy;
+
+                // toroidal wrap (keeps the system breathing)
+                if (this.x < 0) this.x += width;
+                else if (this.x > width) this.x -= width;
+                if (this.y < 0) this.y += height;
+                else if (this.y > height) this.y -= height;
+
+                // draw trail (speed → ink)
+                const speed = Math.sqrt(this.vx * this.vx + this.vy * this.vy);
+                const alpha = constrain(map(speed, 0, maxV, 40, 150), 30, 170);
+                const c = color(params.colorPalette[this.paletteIndex]);
+                c.setAlpha(alpha);
+                stroke(c);
+                strokeWeight(1.15);
+                line(this.px, this.py, this.x, this.y);
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════
+        // UI CONTROL HANDLERS
+        // ═══════════════════════════════════════════════════════════════════════
+
+        const paramTypes = {
+            seed: 'int',
+            rows: 'int',
+            cols: 'int',
+            agentCount: 'int',
+            seatJitter: 'int',
+            avoidPairs: 'int',
+            fade: 'int',
+            noiseScale: 'float',
+            flowStrength: 'float',
+            repulsion: 'float'
+        };
+
+        function updateParam(paramName, value) {
+            const t = paramTypes[paramName] || 'float';
+            const parsed = (t === 'int') ? parseInt(value) : parseFloat(value);
+            params[paramName] = parsed;
+            syncControlValue(paramName, parsed);
+            initializeSystem();
+        }
+
+        function updateColor(colorId, value) {
+            if (colorId === 'color1') params.colorPalette[0] = value;
+            if (colorId === 'color2') params.colorPalette[1] = value;
+            if (colorId === 'color3') params.colorPalette[2] = value;
+            document.getElementById(colorId + '-value').textContent = value;
+            initializeSystem();
+        }
+
+        function syncControlValue(id, value, silent) {
+            const input = document.getElementById(id);
+            const display = document.getElementById(id + '-value');
+            if (input) input.value = value;
+            if (display) {
+                if (typeof value === 'number' && !Number.isInteger(value)) {
+                    const decimals = (id === 'noiseScale') ? 3 : 1;
+                    display.textContent = value.toFixed(decimals);
+                } else {
+                    display.textContent = String(value);
+                }
+            }
+            if (!silent) return;
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════
+        // SEED CONTROL FUNCTIONS (FIXED)
+        // ═══════════════════════════════════════════════════════════════════════
+
+        function updateSeedDisplay() {
+            document.getElementById('seed-input').value = params.seed;
+        }
+
+        function updateSeed() {
+            const input = document.getElementById('seed-input');
+            const newSeed = parseInt(input.value);
+            if (newSeed && newSeed > 0) {
+                params.seed = newSeed;
+                updateSeedDisplay();
+                initializeSystem();
+            } else {
+                updateSeedDisplay();
+            }
+        }
+
+        function previousSeed() {
+            params.seed = Math.max(1, params.seed - 1);
+            updateSeedDisplay();
+            initializeSystem();
+        }
+
+        function nextSeed() {
+            params.seed = params.seed + 1;
+            updateSeedDisplay();
+            initializeSystem();
+        }
+
+        function randomSeedAndUpdate() {
+            params.seed = Math.floor(Math.random() * 999999) + 1;
+            updateSeedDisplay();
+            initializeSystem();
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════
+        // ACTIONS (FIXED)
+        // ═══════════════════════════════════════════════════════════════════════
+
+        function regenerate() {
+            initializeSystem();
+        }
+
+        function downloadPNG() {
+            if (!mainCanvas) return;
+            const name = 'constraint-bloom_seed-' + params.seed;
+            saveCanvas(mainCanvas, name, 'png');
+        }
+
+        function resetParameters() {
+            params = {...defaultParams};
+
+            syncControlValue('rows', params.rows);
+            syncControlValue('cols', params.cols);
+            syncControlValue('agentCount', params.agentCount);
+            syncControlValue('seatJitter', params.seatJitter);
+            syncControlValue('noiseScale', params.noiseScale);
+            syncControlValue('flowStrength', params.flowStrength);
+            syncControlValue('repulsion', params.repulsion);
+            syncControlValue('avoidPairs', params.avoidPairs);
+            syncControlValue('fade', params.fade);
+
+            // Reset colors
+            document.getElementById('color1').value = params.colorPalette[0];
+            document.getElementById('color1-value').textContent = params.colorPalette[0];
+            document.getElementById('color2').value = params.colorPalette[1];
+            document.getElementById('color2-value').textContent = params.colorPalette[1];
+            document.getElementById('color3').value = params.colorPalette[2];
+            document.getElementById('color3-value').textContent = params.colorPalette[2];
+
+            updateSeedDisplay();
+            initializeSystem();
+        }
+
+        // Initialize UI on load
+        window.addEventListener('load', function() {
+            updateSeedDisplay();
+        });
+    </script>
+</body>
+</html>
+
