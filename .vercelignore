@@ -1,0 +1,14 @@
+# 根目錄 requirements.txt 是給本地 streamlit 版用的,Vercel 只需 api/requirements.txt
+requirements.txt
+
+# 本地 server / Streamlit 入口不上 Vercel
+server.py
+art/
+PLAN
+DEV_TIPS.md
+CLAUDE.md
+
+# Python cache
+__pycache__/
+*.pyc
+.venv/
