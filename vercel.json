@@ -9,8 +9,9 @@
     { "src": "api/export-xlsx.py", "use": "@vercel/python", "config": { "includeFiles": "{models,utils}/**" } }
   ],
   "routes": [
-    { "src": "/api/export/pdf", "dest": "/api/export-pdf" },
-    { "src": "/api/export/xlsx", "dest": "/api/export-xlsx" },
+    { "src": "/api/export/pdf", "dest": "/api/export-pdf.py" },
+    { "src": "/api/export/xlsx", "dest": "/api/export-xlsx.py" },
+    { "src": "/api/([^/]+)", "dest": "/api/$1.py" },
     { "handle": "filesystem" },
     { "src": "/", "status": 308, "headers": { "Location": "/web/" } },
     { "src": "/web", "status": 308, "headers": { "Location": "/web/" } },
