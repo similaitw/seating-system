@@ -12,8 +12,8 @@
     { "src": "/api/export/pdf", "dest": "/api/export-pdf" },
     { "src": "/api/export/xlsx", "dest": "/api/export-xlsx" },
     { "src": "/api/(.*)", "dest": "/api/$1" },
-    { "src": "/", "dest": "/web/index.html" },
-    { "src": "/web/?", "dest": "/web/index.html" },
-    { "src": "/(.*)", "dest": "/web/$1" }
+    { "src": "/", "status": 308, "headers": { "Location": "/web/" } },
+    { "src": "/web", "status": 308, "headers": { "Location": "/web/" } },
+    { "src": "/web/", "dest": "/web/index.html" }
   ]
 }
